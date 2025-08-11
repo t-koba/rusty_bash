@@ -151,27 +151,23 @@ pub fn type_(core: &mut ShellCore, args: &[String]) -> i32 {
         return 0;
     }
 
-    let mut args = arg::dissolve_options(args);
-    let t_option = arg::consume_option("-t", &mut args);
-    if t_option {
-        if args[1] == "--" {
-            args.remove(1);
-        }
-        return type_t(core, &args[1..]);
+    let args = arg::dissolve_options(args);
+
+    let names: Vec<String> = args
+        .iter()
+        .skip(1)
+        .filter(|&arg| !arg.starts_with('-'))
+        .cloned()
+        .collect();
+
+    if arg::has_option("-t", &args) {
+        return type_t(core, &names);
     }
-    let p_option = arg::consume_option("-p", &mut args);
-    if p_option {
-        if args[1] == "--" {
-            args.remove(1);
-        }
-        return type_p(core, &args[1..]);
+    if arg::has_option("-p", &args) {
+        return type_p(core, &names);
     }
-    let large_p_option = arg::consume_option("-P", &mut args);
-    if large_p_option {
-        if args[1] == "--" {
-            args.remove(1);
-        }
-        return type_large_p(core, &args[1..]);
+    if arg::has_option("-P", &args) {
+        return type_large_p(core, &names);
     }
 
     type_no_opt(core, &args[1..])

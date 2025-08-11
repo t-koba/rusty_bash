@@ -252,7 +252,12 @@ pub fn declare(core: &mut ShellCore, args: &[String], subs: &mut [Substitution])
         for sub in subs {
             print_args.push(sub.text.clone());
         }
-        return declare_print(core, &print_args[1..], &print_args[0]);
+        let var_names: Vec<String> = print_args[1..]
+            .iter()
+            .filter(|arg| !arg.starts_with("-"))
+            .cloned()
+            .collect();
+        return declare_print(core, &var_names, &print_args[0]);
     }
 
     let layer = core.db.get_layer_num() - 2;

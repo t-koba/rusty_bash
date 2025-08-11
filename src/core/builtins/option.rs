@@ -90,14 +90,17 @@ pub fn set_short_options(core: &mut ShellCore, args: &mut Vec<String>) {
 
 pub fn set(core: &mut ShellCore, args: &[String]) -> i32 {
     let mut args = arg::dissolve_options(args);
+    let split = args.iter().position(|a| a == "--").unwrap_or(args.len());
+    let mut head = args[..split].to_vec();
+    let tail = args[split..].to_vec();
 
-    if core.db.flags.contains('r') && arg::consume_option("+r", &mut args) {
+    if core.db.flags.contains('r') && arg::consume_option("+r", &mut head) {
         let _ = super::error_exit(1, &args[0], "+r: invalid option", core);
         eprintln!("set: usage: set [-abefhkmnptuvxBCEHPT] [-o option-name] [--] [-] [arg ...]"); // TODO: this line is a dummy for test. We must implement all behaviors of these options.
         return 1;
     }
 
-    if args.len() <= 1 {
+    if head.get(1).is_none() && tail.is_empty() {
         /* print */
         core.db
             .get_keys()
@@ -106,22 +109,22 @@ pub fn set(core: &mut ShellCore, args: &[String]) -> i32 {
         return 0;
     }
 
-    set_short_options(core, &mut args);
-
-    if args.len() < 2 {
+    set_short_options(core, &mut head);
+    if head.get(1).is_none() && tail.is_empty() {
         return 0;
     }
 
-    if args[1].starts_with("--") {
-        args[1] = core.db.position_parameters[0][0].clone();
-        args.remove(0);
-        return match set_positions(core, &args) {
+    if split < args.len() {
+        let mut new_args = tail[1..].to_vec();
+        new_args.insert(0, String::new());
+        return match set_positions(core, &new_args) {
             Ok(()) => 0,
-            Err(e) => {
-                return super::error_exit(1, &args[0], &String::from(&e), core);
-            }
+            Err(e) => super::error_exit(1, &head[0], &String::from(&e), core),
         };
     }
+
+    args = head;
+    args.extend(tail);
 
     if args[1] == "-o" || args[1] == "+o" {
         let positive = args[1] == "-o";
