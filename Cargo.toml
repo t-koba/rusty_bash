@@ -10,6 +10,7 @@ target_bash_version = "5.2.37" # Ubuntu 25.04
 
 [dependencies]
 nix = { version = "0.30.1", features = ["fs", "process", "signal", "term", "user", "time", "hostname", "resource"]}
+sushline = { git = "https://github.com/t-koba/sushline", branch = "alpha" }
 termion = "4.0.5"
 unicode-width = "0.1.11"
 signal-hook = "0.3.17"

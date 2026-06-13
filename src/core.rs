@@ -11,7 +11,8 @@ pub mod jobtable;
 pub mod options;
 pub mod time_keeper;
 
-use self::completion::{Completion, CompletionEntry};
+use self::completion::Completion;
+pub use self::completion::CompletionSpec;
 use self::database::DataBase;
 use self::file_descs::FileDescriptors;
 use self::options::Options;
@@ -73,6 +74,7 @@ pub struct ShellCore {
     pub valid_assoc_expand_once: bool,
     pub proc_sub_pid: Vec<Pid>,
     pub proc_sub_fd: Vec<RawFd>,
+    pub readline: Option<sushline::readline::Editor<sushline::readline::Terminal>>,
     pub exec_command_path_bkup: Option<String>,
     pub now_herestring: bool,
 }

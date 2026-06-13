@@ -15,6 +15,11 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
+const KEYWORDS: &[&str] = &[
+    "!", "[[", "]]", "case", "coproc", "do", "done", "elif", "else", "esac", "fi", "for",
+    "function", "if", "in", "select", "then", "time", "until", "while", "{", "}",
+];
+
 pub fn compgen_f(core: &mut ShellCore, args: &[String], dir_only: bool) -> Vec<String> {
     let mut arg_index = 2;
     if args.len() > 2 && args[2] == "--" {
@@ -83,6 +88,7 @@ fn normalize_compgen_args(args: &[String]) -> Vec<String> {
         "command" => "-c",
         "directory" => "-d",
         "file" => "-f",
+        "keyword" => "-k",
         "user" => "-u",
         "setopt" => "-o",
         "function" => "-A function",
@@ -145,6 +151,7 @@ pub fn compgen(core: &mut ShellCore, args: &[String]) -> i32 {
         "-f" => compgen_f(core, &args, false),
         "-h" => compgen_h(core, &args), //history (sush original)
         "-j" => compgen_j(core, &args),
+        "-k" => compgen_k(&args),
         "-o" => compgen_o(core, &args),
         "-u" => compgen_u(core, &args),
         "-v" => compgen_v(core, &args),
@@ -250,6 +257,7 @@ pub fn compgen_c(core: &mut ShellCore, args: &[String]) -> Vec<String> {
     commands.append(&mut builtins);
     let mut functions: Vec<String> = core.db.functions.keys().cloned().collect();
     commands.append(&mut functions);
+    commands.extend(compgen_k(args));
 
     let head = get_head(args, 2);
     if !head.is_empty() {
@@ -262,6 +270,15 @@ pub fn compgen_c(core: &mut ShellCore, args: &[String]) -> Vec<String> {
 
 fn compgen_d(core: &mut ShellCore, args: &[String]) -> Vec<String> {
     compgen_f(core, args, true)
+}
+
+pub fn compgen_k(args: &[String]) -> Vec<String> {
+    let mut keywords = KEYWORDS
+        .iter()
+        .map(|keyword| keyword.to_string())
+        .collect::<Vec<_>>();
+    drop_unmatch(args, 2, &mut keywords);
+    keywords
 }
 
 pub fn compgen_e(args: &[String]) -> Vec<String> {
@@ -336,7 +353,7 @@ fn compgen_large_g(core: &mut ShellCore, args: &[String]) -> Vec<String> {
     path_expansion::expand(&glob, &core.shopts)
 }
 
-fn compgen_large_w(core: &mut ShellCore, args: &[String]) -> Vec<String> {
+pub fn compgen_large_w(core: &mut ShellCore, args: &[String]) -> Vec<String> {
     let mut ans: Vec<String> = vec![];
     let mut words = args[2].to_string();
 
