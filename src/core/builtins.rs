@@ -15,6 +15,7 @@ mod enable;
 mod exec;
 mod getopts;
 mod hash;
+mod help;
 mod history;
 mod job_commands;
 mod loop_control;
@@ -107,6 +108,7 @@ impl ShellCore {
         self.builtins
             .insert("getopts".to_string(), getopts::getopts);
         self.builtins.insert("hash".to_string(), hash::hash);
+        self.builtins.insert("help".to_string(), help::help);
         self.builtins
             .insert("history".to_string(), history::history);
         self.builtins.insert("let".to_string(), let_);
