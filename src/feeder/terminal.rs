@@ -12,8 +12,8 @@ use history::{history_for_readline, remove_current_history_entry, update_current
 use prompt::make_prompt_string;
 use std::sync::atomic::Ordering::Relaxed;
 use sushline::readline::{
-    CompletionRequest, CompletionResponse, Editor, HistoryExpansion, HistoryExpansionPolicy, Hooks,
-    Prompt, ReadlineResult, Terminal, expand_history,
+    CommandContext, CompletionRequest, CompletionResponse, Edit, Editor, HistoryExpansion,
+    HistoryExpansionPolicy, Hooks, Prompt, ReadlineResult, Terminal, expand_history,
 };
 
 struct SushHooks<'a> {
@@ -84,6 +84,60 @@ impl Hooks for SushHooks<'_> {
     fn completion_word_breaks(&mut self) -> Option<Vec<u8>> {
         Some(completion::completion_word_breaks())
     }
+
+    fn on_command(&mut self, context: CommandContext<'_>) -> Option<Edit> {
+        run_readline_application_command(self.core, context)
+    }
+}
+
+fn run_readline_application_command(
+    core: &mut ShellCore,
+    context: CommandContext<'_>,
+) -> Option<Edit> {
+    let line = String::from_utf8_lossy(context.line).into_owned();
+    let _ = core.db.set_param("READLINE_LINE", &line, None);
+    let _ = core
+        .db
+        .set_param("READLINE_POINT", &context.point.to_string(), None);
+    let _ = core.db.set_param(
+        "READLINE_MARK",
+        &context.mark.unwrap_or(context.point).to_string(),
+        None,
+    );
+    if let Some(argument) = context.argument {
+        let _ = core
+            .db
+            .set_param("READLINE_ARGUMENT", &argument.to_string(), None);
+    } else {
+        let _ = core.db.set_param("READLINE_ARGUMENT", "", None);
+    }
+
+    let mut feeder = crate::Feeder::new(context.command);
+    match crate::Script::parse(&mut feeder, core, false) {
+        Ok(Some(mut script)) => {
+            let _ = script.exec(core);
+        }
+        Ok(None) => {}
+        Err(err) => err.print(core),
+    }
+
+    let line = core.db.get_param("READLINE_LINE").ok()?.into_bytes();
+    let point = core
+        .db
+        .get_param("READLINE_POINT")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok());
+    let mark = core
+        .db
+        .get_param("READLINE_MARK")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok());
+
+    Some(Edit {
+        line: Some(line),
+        point,
+        mark: Some(mark),
+    })
 }
 
 pub fn read_line(core: &mut ShellCore, prompt: &str) -> Result<String, InputError> {
@@ -146,6 +200,7 @@ fn readline_bytes_to_feeder_line(bytes: Vec<u8>) -> Result<(String, String), Inp
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sushline::readline::KeyMapName;
 
     #[test]
     fn accepted_readline_line_keeps_feeder_trailing_newline() {
@@ -153,5 +208,27 @@ mod tests {
             readline_bytes_to_feeder_line(b"echo \"alpha".to_vec()).expect("valid utf-8");
         assert_eq!(input, "echo \"alpha\n");
         assert_eq!(history, "echo \"alpha");
+    }
+
+    #[test]
+    fn readline_application_command_updates_line_from_readline_variables() {
+        let mut core = ShellCore::new();
+        core.configure_c_mode().unwrap();
+        let context = CommandContext {
+            command: "READLINE_LINE=rewritten; READLINE_POINT=3; READLINE_MARK=1",
+            line: b"original",
+            point: 8,
+            mark: None,
+            argument: Some(2),
+            key: b"\x0f",
+            keymap: KeyMapName::Emacs,
+        };
+
+        let edit = run_readline_application_command(&mut core, context).unwrap();
+
+        assert_eq!(edit.line, Some(b"rewritten".to_vec()));
+        assert_eq!(edit.point, Some(3));
+        assert_eq!(edit.mark, Some(Some(1)));
+        assert_eq!(core.db.get_param("READLINE_ARGUMENT").unwrap(), "2");
     }
 }

@@ -3,6 +3,7 @@
 //SPDX-License-Identifier: BSD-3-Clause
 
 mod alias;
+mod bind;
 mod caller;
 mod cd;
 mod command;
@@ -79,7 +80,7 @@ impl ShellCore {
     pub fn set_builtins(&mut self) {
         self.builtins.insert(":".to_string(), true_);
         self.builtins.insert("alias".to_string(), alias::alias);
-        self.builtins.insert("bind".to_string(), bind);
+        self.builtins.insert("bind".to_string(), bind::bind);
         self.builtins
             .insert("break".to_string(), loop_control::break_);
         self.builtins
@@ -202,10 +203,6 @@ pub fn false_(_: &mut ShellCore, _: &[String]) -> i32 {
 }
 
 pub fn true_(_: &mut ShellCore, _: &[String]) -> i32 {
-    0
-}
-
-pub fn bind(_: &mut ShellCore, _: &[String]) -> i32 {
     0
 }
 
